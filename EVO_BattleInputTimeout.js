@@ -1,5 +1,5 @@
 /*:
- * @plugindesc Minimal actor-command input battle timeout for RPG Maker MV.
+ * @plugindesc Minimal actor-command input battle timeout with counter for RPG Maker MV.
  * @author Gniiial
  * --------------------------
  * @license GPL-3.0-or-later
