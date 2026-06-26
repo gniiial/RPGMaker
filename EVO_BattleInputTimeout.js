@@ -1,5 +1,5 @@
 /*:
- * @plugindesc Minimal actor-command input battle timeout with counter for RPG Maker MV.
+ * @plugindesc Minimal actor-command input timeout for RPG Maker MV.
  * @author Gniiial
  * --------------------------
  * @license GPL-3.0-or-later
@@ -183,13 +183,40 @@
 			return;
 		}
 
+		if (!this._evoTimeoutCounterSprite.visible && this._evoCounterNumber === null) {
+			return;
+		}
+
 		this._evoCounterNumber = null;
 		this._evoTimeoutCounterSprite.visible = false;
+	};
+	
+	Scene_Battle.prototype.setEvoTimeoutMode = function(mode) {
+		if (this._evoTimeoutMode === mode) {
+			return;
+		}
+
+		this._evoTimeoutMode = mode;
+		this._evoCounterNumber = null;
+
+		if (mode === 'party') {
+			this._evoPartyFightFrames = PARTY_FIGHT_FRAMES;
+			this._evoInputTimeoutActor = null;
+			this._evoInputTimeoutFrames = TIME_LIMIT;
+		} else if (mode === 'actor') {
+			this._evoPartyFightFrames = PARTY_FIGHT_FRAMES;
+		} else {
+			this._evoInputTimeoutActor = null;
+			this._evoInputTimeoutFrames = TIME_LIMIT;
+			this._evoPartyFightFrames = PARTY_FIGHT_FRAMES;
+			this.hideEvoTimeoutCounter();
+		}
 	};
 
     var _Scene_Battle_create = Scene_Battle.prototype.create;
     Scene_Battle.prototype.create = function() {
         _Scene_Battle_create.call(this);
+		this._evoTimeoutMode = 'none';
         this._evoInputTimeoutActor = null;
         this._evoInputTimeoutFrames = TIME_LIMIT;
 		this._evoPartyFightFrames = PARTY_FIGHT_FRAMES;
@@ -204,34 +231,25 @@
     };
 
     Scene_Battle.prototype.updateEvoInputTimeout = function() {
-		if (!timeoutEnabled()) {
-			this.resetEvoInputTimeout();
-			this.resetEvoPartyCommandTimeout();
-			this.hideEvoTimeoutCounter();
+		if (!timeoutEnabled() || !BattleManager.isInputting()) {
+			this.setEvoTimeoutMode('none');
 			return;
 		}
 
-		if (!BattleManager.isInputting()) {
-			this.resetEvoInputTimeout();
-			this.resetEvoPartyCommandTimeout();
-			this.hideEvoTimeoutCounter();
+		if (this._partyCommandWindow && this._partyCommandWindow.active) {
+			this.setEvoTimeoutMode('party');
+			this.updateEvoPartyCommandTimeout();
 			return;
 		}
 
-		if (this.updateEvoPartyCommandTimeout()) {
-			return;
-		}
+		this.setEvoTimeoutMode('actor');
 
 		var actor = BattleManager.actor();
 
-		if (!actor) {
-			this.resetEvoInputTimeout();
+		if (!actor || !commandInputWindowActive(this)) {
+			this.hideEvoTimeoutCounter();
 			return;
 		}
-
-        if (!commandInputWindowActive(this)) {
-            return;
-        }
 
 		if (this._evoInputTimeoutActor !== actor) {
 			this._evoInputTimeoutActor = actor;
@@ -252,12 +270,8 @@
 
 	Scene_Battle.prototype.updateEvoPartyCommandTimeout = function() {
 		if (PARTY_FIGHT_FRAMES <= 0) {
-			return false;
-		}
-
-		if (!this._partyCommandWindow || !this._partyCommandWindow.active) {
-			this.resetEvoPartyCommandTimeout();
-			return false;
+			this.hideEvoTimeoutCounter();
+			return;
 		}
 
 		this._evoPartyFightFrames--;
@@ -265,10 +279,7 @@
 
 		if (this._evoPartyFightFrames <= 0) {
 			this.applyEvoPartyFightFrames();
-			return true;
 		}
-
-		return true;
 	};
 
 	Scene_Battle.prototype.resetEvoPartyCommandTimeout = function() {
